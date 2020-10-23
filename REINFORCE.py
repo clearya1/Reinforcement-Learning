@@ -11,7 +11,7 @@ env = gym.make('CartPole-v0')
 
 #model parameters
 alpha = 0.01   #step size parameter for each update of the network's weights
-gamma = 0.9    #discount factor, if close to 0, model weights nearer timesteps
+gamma = 0.5    #discount factor, if close to 0, model weights nearer timesteps
 
 class GradDescModel:
 
@@ -73,7 +73,7 @@ def rollingAvg(x):
     
     for i in range(1, len(x)):
     
-        result[i] = ((float(i)-1.0)*result[i-1] + x[i])/float(i)
+        result[i] = ((float(i))*result[i-1] + x[i])/float(i+1.0)
     
     return result
         
@@ -119,10 +119,19 @@ for i_episode in range(50):
         #compute the gradient of the logarithm
         with tf.GradientTape() as tape:
             tape.watch(agent.model.trainable_variables)
-            result = tf.math.log(agent.model(np.reshape(agent.S[t], (1,4))))
+            actions = agent.model(tf.reshape(agent.S[t], (1,4)))
+            #print(actions)
+            b = tf.sort(actions,axis=-1,direction='DESCENDING',name=None)
+            #print(b)
+            action = b[0][0]
+            #print(action)
+            result = tf.math.log(action)
+            #print(result)
+            
+            #result = tf.math.log(agent.model(np.reshape(agent.S[t], (1,4))))
 
         nabla = tape.gradient(result, agent.model.trainable_variables)
-        
+        #print(nabla)
         #update the model weights
         for i in range(len(nabla)):
             agent.model.trainable_variables[i].assign( tf.math.add(agent.model.trainable_variables[i], tf.math.scalar_mul( agent.alpha * agent.gamma**t * g, nabla[i]  )  )  )
