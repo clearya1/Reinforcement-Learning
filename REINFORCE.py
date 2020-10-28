@@ -10,8 +10,8 @@ import random
 env = gym.make('CartPole-v0')
 
 #model parameters
-alpha = 0.01   #step size parameter for each update of the network's weights
-gamma = 0.5    #discount factor, if close to 0, model weights nearer timesteps
+alpha = 1e-12   #step size parameter for each update of the network's weights
+gamma = 0.25    #discount factor, if close to 0, model weights nearer timesteps
 
 class GradDescModel:
 
@@ -38,8 +38,8 @@ class GradDescModel:
         
         model = keras.Sequential([
             keras.Input(self.observation_space.shape, name="observations", dtype=np.float64),
-            layers.Dense(32, activation='relu', dtype=np.float64),
-            layers.Dense(32, activation='relu', dtype=np.float64),
+            layers.Dense(4, activation='relu', dtype=np.float64),
+            layers.Dense(64, activation='relu', dtype=np.float64),
             layers.Dense(self.action_space.n, activation="softmax", name="actions", dtype=np.float64),
         ])
         
@@ -80,12 +80,13 @@ def rollingAvg(x):
 #create model class instance
 agent = GradDescModel(env, alpha, gamma)
 print(agent.model.summary())
+#print(agent.model.trainable_variables)
 
 #NOTES :
 #Input needs to be 2D array, of form (n_batches, 2) as model.predict takes in batches of inputs
 #need to cast output of model to numpy and then ravel it for 1d array
 
-for i_episode in range(50):
+for i_episode in range(300):
 
     #get initial state of system
     obs = env.reset()
@@ -99,9 +100,10 @@ for i_episode in range(50):
         #return action with highest probability
         action = np.argmax(agent.model(obs).numpy().ravel())
         #take this action
-        obs, reward, done, info = env.step(action)
+        newobs, reward, done, info = env.step(action)
         #record next state, action and reward
         agent.save(obs, action, reward)
+        obs = newobs
         #check for termination
         if done:
             print("{} finished after {} timesteps".format(i_episode, t+1))
@@ -135,6 +137,11 @@ for i_episode in range(50):
         #update the model weights
         for i in range(len(nabla)):
             agent.model.trainable_variables[i].assign( tf.math.add(agent.model.trainable_variables[i], tf.math.scalar_mul( agent.alpha * agent.gamma**t * g, nabla[i]  )  )  )
+            
+        #print("variables: ", agent.model.trainable_variables)
+        #print("-----------")
+        #print("nabla: ", nabla)
+        #print("-----------")
     
     #unload the previous episode and start again
     agent.S = []
