@@ -39,7 +39,7 @@ class GradDescModel:
         
         model = keras.Sequential([
             keras.Input(self.observation_space.shape, name="observations", dtype=np.float64),
-            #layers.Dense(64, activation='relu', dtype=np.float64),
+            layers.Dense(20, activation='relu', dtype=np.float64),
             #layers.Dense(4, activation='relu', dtype=np.float64),
             #layers.Dense(64, activation='relu', dtype=np.float64),
             layers.Dense(self.action_space.n, activation="softmax", name="actions", dtype=np.float64),
@@ -155,7 +155,9 @@ for alpha_i, alpha in enumerate(alphaList):
                 #reshape
                 obs = np.reshape(obs, (1,4))
                 #return action with highest probability
-                action = np.argmax(agent.model(obs).numpy().ravel())
+                #action = np.argmax(agent.model(obs).numpy().ravel())
+                action_probs = 
+                action = np.random.choice(agent.action_space, p=action_probs)
                 #take this action
                 newobs, reward, done, info = env.step(action)
                 #record next state, action and reward
