@@ -226,8 +226,8 @@ f.close()
 fig = plt.figure()
 ax = fig.add_subplot(111)
 
-ax.set_xlabel('alpha')
-ax.set_ylabel('gamma')
+ax.set_ylabel('alpha')
+ax.set_xlabel('gamma')
 ax.set_xticklabels(alphaList)
 ax.set_yticklabels(gammaList)
 
