@@ -11,7 +11,7 @@ import h5py
 env = gym.make('CartPole-v0')
 
 #model parameters
-alpha = 1e-10   #step size parameter for each update of the network's weights
+alpha = 1e-4   #step size parameter for each update of the network's weights
 gamma = 0.1    #discount factor, if close to 0, model weights nearer timesteps
 
 class GradDescModel:
@@ -27,6 +27,7 @@ class GradDescModel:
         self.S = []         #stochastic observations/states for a single episode
         self.A = []         #stochastic actions for a single episode
         self.R = []         #stochastic rewards for a single episode
+        self.grads = []     #store derivates over a single episode
         
         self.lifespan = []    #records how long each episode lasts for
         
@@ -39,7 +40,7 @@ class GradDescModel:
         
         model = keras.Sequential([
             keras.Input(self.observation_space.shape, name="observations", dtype=np.float64),
-            layers.Dense(20, activation='relu', dtype=np.float64),
+            layers.Dense(8, activation='relu', dtype=np.float64),
             #layers.Dense(4, activation='relu', dtype=np.float64),
             #layers.Dense(64, activation='relu', dtype=np.float64),
             layers.Dense(self.action_space.n, activation="softmax", name="actions", dtype=np.float64),
@@ -79,7 +80,7 @@ class GradDescModel:
                 #take this action
                 newobs, reward, done, info = env.step(action)
                 #record next state, action and reward
-                self.save(obs, action, reward)
+                #self.save(obs, action, reward)
                 obs = newobs
                 #check for termination
                 if done:
@@ -122,9 +123,9 @@ def rollingAvg(x):
 #Input needs to be 2D array, of form (n_batches, 2) as model.predict takes in batches of inputs
 #need to cast output of model to numpy and then ravel it for 1d array
 
-alphaList = [1*10**(-exp) for exp in range(5, 15)]
+alphaList = [1*10**(-exp) for exp in range(5, 6)]
 print(alphaList)
-gammaList = np.round([0.1+i*0.2 for i in range(5)],2)
+gammaList = np.round([0.1+i*0.2 for i in range(1)],2)
 print(gammaList)
 
 episodes = 300
@@ -140,7 +141,7 @@ for alpha_i, alpha in enumerate(alphaList):
         #create model class instance
         agent = GradDescModel(env, alpha, gamma)
         #print(agent.model.summary())
-        agent.initialiseWeights(50)
+        #agent.initialiseWeights(50)
         #print(agent.model.trainable_variables)
 
         for i_episode in range(episodes):
@@ -150,14 +151,29 @@ for alpha_i, alpha in enumerate(alphaList):
             
             #generate an episode
             for t in range(1000):
-            
-                #env.render()
-                #reshape
-                obs = np.reshape(obs, (1,4))
-                #return action with highest probability
-                #action = np.argmax(agent.model(obs).numpy().ravel())
-                action_probs = 
-                action = np.random.choice(agent.action_space, p=action_probs)
+                #print(t)
+                env.render()
+                
+                #computing the gradient of the logarithm
+                with tf.GradientTape() as tape:
+                
+                    tape.watch(agent.model.trainable_variables)
+                
+                    #reshape
+                    obs = tf.reshape(obs, (1,4))
+                    #return action with highest probability
+                    #action = np.argmax(agent.model(obs).numpy().ravel())
+                    action_probs = agent.model(obs)
+                    #print(action_probs)
+                    action = tf.random.categorical(action_probs, 1)[0]
+                    #print(action)
+                    
+                    result = tf.math.log(action_probs)[0][action.numpy()[0]]
+                    #print(result)
+                    
+                agent.grads.append( tape.gradient(result, agent.model.trainable_variables) )
+                
+                action = action.numpy()[0]
                 #take this action
                 newobs, reward, done, info = env.step(action)
                 #record next state, action and reward
@@ -165,7 +181,7 @@ for alpha_i, alpha in enumerate(alphaList):
                 obs = newobs
                 #check for termination
                 if done:
-                    #print("{} finished after {} timesteps".format(i_episode, t+1))
+                    print("{} finished after {} timesteps".format(i_episode, t+1))
                     agent.lifespan.append(t+1)
                     break
                 
@@ -176,7 +192,8 @@ for alpha_i, alpha in enumerate(alphaList):
                 
                 #compute return from time t
                 g = agent.sumG(t)
-                
+                nabla = agent.grads[t]
+                """
                 #compute the gradient of the logarithm
                 with tf.GradientTape() as tape:
                     tape.watch(agent.model.trainable_variables)
@@ -192,6 +209,7 @@ for alpha_i, alpha in enumerate(alphaList):
                     #result = tf.math.log(agent.model(np.reshape(agent.S[t], (1,4))))
 
                 nabla = tape.gradient(result, agent.model.trainable_variables)
+                """
                 #print(nabla)
                 #update the model weights
                 for i in range(len(nabla)):
