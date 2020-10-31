@@ -11,8 +11,8 @@ import h5py
 env = gym.make('CartPole-v0')
 
 #model parameters
-alpha = 1e-4   #step size parameter for each update of the network's weights
-gamma = 0.1    #discount factor, if close to 0, model weights nearer timesteps
+alpha = 1e-3   #step size parameter for each update of the network's weights
+gamma = 0.01    #discount factor, if close to 0, model weights nearer timesteps
 
 class GradDescModel:
 
@@ -152,7 +152,7 @@ for alpha_i, alpha in enumerate(alphaList):
             #generate an episode
             for t in range(1000):
                 #print(t)
-                env.render()
+                #env.render()
                 
                 #computing the gradient of the logarithm
                 with tf.GradientTape() as tape:
