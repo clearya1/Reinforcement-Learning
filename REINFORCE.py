@@ -39,10 +39,14 @@ class GradDescModel:
         
         model = keras.Sequential([
             keras.Input(self.observation_space.shape, name="observations", dtype=np.float64),
+            #layers.Dense(64, activation='relu', dtype=np.float64),
             #layers.Dense(4, activation='relu', dtype=np.float64),
             #layers.Dense(64, activation='relu', dtype=np.float64),
             layers.Dense(self.action_space.n, activation="softmax", name="actions", dtype=np.float64),
         ])
+        
+        #for i in range(len(model.trainable_variables)):
+        #    model.trainable_variables[i].assign( tf.ones_like (model.trainable_variables[i]) * 0.5 )
         
         return model
         
@@ -112,7 +116,7 @@ def rollingAvg(x):
         result[i] = ((float(i))*result[i-1] + x[i])/float(i+1.0)
     
     return result
-        
+    
 
 #NOTES :
 #Input needs to be 2D array, of form (n_batches, 2) as model.predict takes in batches of inputs
