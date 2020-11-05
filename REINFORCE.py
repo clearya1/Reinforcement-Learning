@@ -11,8 +11,8 @@ import h5py
 env = gym.make('CartPole-v0')
 
 #model parameters
-alpha = 1e-3   #step size parameter for each update of the network's weights
-gamma = 0.01    #discount factor, if close to 0, model weights nearer timesteps
+#alpha = 1   #step size parameter for each update of the network's weights
+#gamma = 0.2     #discount factor, if close to 0, model weights nearer timesteps
 
 class GradDescModel:
 
@@ -40,14 +40,15 @@ class GradDescModel:
         
         model = keras.Sequential([
             keras.Input(self.observation_space.shape, name="observations", dtype=np.float64),
-            layers.Dense(8, activation='relu', dtype=np.float64),
+            layers.Dense(8, activation='relu', dtype=np.float64, kernel_initializer='random_normal',
+    bias_initializer='random_normal'),  #layers.LeakyReLU(alpha=0.01)
             #layers.Dense(4, activation='relu', dtype=np.float64),
             #layers.Dense(64, activation='relu', dtype=np.float64),
             layers.Dense(self.action_space.n, activation="softmax", name="actions", dtype=np.float64),
         ])
         
         #for i in range(len(model.trainable_variables)):
-        #    model.trainable_variables[i].assign( tf.ones_like (model.trainable_variables[i]) * 0.5 )
+         #   model.trainable_variables[i].assign( tf.random.uniform (shape = tf.shape(model.trainable_variables[i])) )
         
         return model
         
@@ -101,9 +102,8 @@ class GradDescModel:
         g = 0
         N = len(self.R)
         
-        for k in range(t+1, N):
-            g += self.gamma**(k-t-1) * self.R[k]
-            
+        for k in range(t, N):
+            g += self.gamma**(k-t) * self.R[k]
         return g
    
 #function for return the rolling average of an array
@@ -123,9 +123,11 @@ def rollingAvg(x):
 #Input needs to be 2D array, of form (n_batches, 2) as model.predict takes in batches of inputs
 #need to cast output of model to numpy and then ravel it for 1d array
 
-alphaList = [1*10**(-exp) for exp in range(5, 6)]
+#alphaList = [1*10**(-exp) for exp in range(5, 6)]
+alphaList = [1e-11]
 print(alphaList)
-gammaList = np.round([0.1+i*0.2 for i in range(1)],2)
+#gammaList = np.round([0.1+i*0.2 for i in range(1)],2)
+gammaList = [1]
 print(gammaList)
 
 episodes = 300
@@ -142,7 +144,7 @@ for alpha_i, alpha in enumerate(alphaList):
         agent = GradDescModel(env, alpha, gamma)
         #print(agent.model.summary())
         #agent.initialiseWeights(50)
-        #print(agent.model.trainable_variables)
+        print(agent.model.trainable_variables)
 
         for i_episode in range(episodes):
 
@@ -170,20 +172,22 @@ for alpha_i, alpha in enumerate(alphaList):
                     
                     result = tf.math.log(action_probs)[0][action.numpy()[0]]
                     #print(result)
-                    
-                agent.grads.append( tape.gradient(result, agent.model.trainable_variables) )
                 
                 action = action.numpy()[0]
                 #take this action
                 newobs, reward, done, info = env.step(action)
-                #record next state, action and reward
-                agent.save(obs, action, reward)
-                obs = newobs
+                
                 #check for termination
                 if done:
                     print("{} finished after {} timesteps".format(i_episode, t+1))
                     agent.lifespan.append(t+1)
                     break
+                    
+                #record next state, action and reward
+                agent.save(obs, action, reward)
+                obs = newobs
+                agent.grads.append( tape.gradient(result, agent.model.trainable_variables) )
+                
                 
             #now loop for every step of the episode
             N = len(agent.R)
@@ -211,6 +215,7 @@ for alpha_i, alpha in enumerate(alphaList):
                 nabla = tape.gradient(result, agent.model.trainable_variables)
                 """
                 #print(nabla)
+                
                 #update the model weights
                 for i in range(len(nabla)):
                     agent.model.trainable_variables[i].assign( tf.math.add(agent.model.trainable_variables[i], tf.math.scalar_mul( agent.alpha * agent.gamma**t * g, nabla[i]  )  )  )
@@ -229,6 +234,10 @@ for alpha_i, alpha in enumerate(alphaList):
         initialRGrid[alpha_i,gamma_i] = np.average(agent.lifespan[:averageN])
         print(initialRGrid[alpha_i,gamma_i])
         print(rGrid[alpha_i,gamma_i])
+        
+        plt.plot(rollingAvg(agent.lifespan))
+        plt.show()
+        
 
 env.close()
 
